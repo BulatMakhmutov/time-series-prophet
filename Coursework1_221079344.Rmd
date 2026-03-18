@@ -1,0 +1,180 @@
+---
+title: "MTH6139 Time Series" 
+subtitle: "Coursework 1" 
+author: "Bulat Makhmutov" 
+date: "March 2026" 
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: spacelab 
+    highlight: tango
+---
+ 
+```{r, echo=FALSE}
+# This code will display the QMUL logo at the top right of the page
+# Do not change this code
+htmltools::img(src = knitr::image_uri("images/QMlogo.png"),
+               alt = 'logo',
+               style = 'position:absolute; top:0; right:0; padding:10px; width:20%;')
+```
+
+# Introduction
+
+This project explores the built-in `co2` time series in R.
+The main aim is to study the behaviour of the series and produce a forecast using Meta's Prophet model.
+
+I chose this dataset because it is simple to use and it shows clear time series patterns.
+In particular, it has both a long-term trend and a seasonal pattern, so it is a suitable example for forecasting.
+
+# Data Description
+
+The `co2` dataset contains monthly atmospheric CO2 measurements.
+It is a classic example in R and is often used to illustrate time series methods.
+
+Before fitting a Prophet model, the data must be converted into a dataframe with two columns:
+- `ds` for the date
+- `y` for the observed value
+
+# Loading libraries and preparing the data
+
+```{r}
+library(prophet)
+library(zoo)
+library(ggplot2)
+library(dplyr)
+
+data("co2")
+
+co2_dataframe <- data.frame(
+  ds = as.Date(as.yearmon(time(co2))),
+  y = as.numeric(co2)
+)
+```
+
+# Checking the data
+
+```{r}
+head(co2_dataframe)
+str(co2_dataframe)
+summary(co2_dataframe)
+sum(is.na(co2_dataframe))
+```
+
+The data appears clean and there are no missing values.
+
+# Exploratory Analysis
+
+I first plot the time series to understand its shape.
+
+```{r}
+ggplot(co2_dataframe, aes(x = ds, y = y)) +
+  geom_line() +
+  labs(
+    title = "Monthly Atmospheric CO2",
+    x = "Date",
+    y = "CO2 concentration"
+  )
+```
+
+The graph shows a clear upward trend over time.
+There is also a repeated seasonal pattern across the years.
+This means the series has both long-run growth and regular within-year variation.
+
+# Simple Trend Check
+
+To support the visual impression of growth, I fit a simple linear regression using a time index.
+
+```{r}
+co2_dataframe$time_index <- 1:nrow(co2_dataframe)
+
+trend_model <- lm(y ~ time_index, data = co2_dataframe)
+summary(trend_model)
+```
+
+The regression confirms that the series is increasing over time.
+This is only a simple descriptive check, but it is consistent with the plot above.
+
+# Prophet Model
+
+Next, I fit a Prophet model to the data.
+
+Because the data is monthly, weekly and daily seasonalities are not relevant in this case.
+
+```{r}
+prophet_model <- prophet(
+  co2_dataframe,
+  weekly.seasonality = FALSE,
+  daily.seasonality = FALSE
+)
+```
+
+Prophet is designed to model trend and seasonality in a flexible way.
+It is also easy to interpret, which makes it useful for this coursework.
+
+# Forecasting Future Values
+
+I now create future dates and forecast the next 24 months.
+
+```{r}
+future_dates <- make_future_dataframe(
+  prophet_model,
+  periods = 24,
+  freq = "month"
+)
+
+forecast_values <- predict(prophet_model, future_dates)
+```
+
+# Inspecting the forecast output
+
+```{r}
+head(forecast_values)
+tail(forecast_values)
+names(forecast_values)
+```
+
+The forecast object contains many columns, including fitted values and uncertainty intervals.
+
+# Forecast Plot
+
+```{r}
+plot(prophet_model, forecast_values)
+```
+
+The forecast continues the upward movement seen in the historical data.
+The seasonal pattern also remains visible in the future period.
+
+This seems reasonable because the original time series shows both steady growth and clear seasonality.
+
+# Model Components
+
+Prophet also allows the components of the model to be plotted separately.
+
+```{r}
+prophet_plot_components(prophet_model, forecast_values)
+```
+
+The trend component shows long-run growth in atmospheric CO2 levels.
+The yearly component shows a clear seasonal pattern with regular peaks and troughs during the year.
+
+# Discussion
+
+This dataset is well suited for Prophet because the main features of the series are easy to identify.
+The model captures both the upward trend and the yearly seasonal movement.
+
+One advantage of Prophet is that it is straightforward to apply and the output is easy to understand.
+This is useful when the goal is to communicate the results clearly.
+
+A limitation is that only one main model specification is used here.
+It could be interesting to compare this forecast with a different Prophet configuration or with another time series method such as ARIMA.
+
+Even so, the current model gives a clear and sensible forecast for this series.
+
+# Conclusion
+
+In this project, I used Meta's Prophet model to forecast the `co2` time series in R.
+The data shows a strong upward trend and clear yearly seasonality.
+The Prophet forecast suggests that `co2` levels will continue to increase over the next two years.
+
+Overall, this project is a simple example of how Prophet can be used to analyse and forecast time series data in an interpretable way.
